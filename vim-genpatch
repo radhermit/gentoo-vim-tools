@@ -15,10 +15,8 @@ VERSION=${MAJOR}.${MINOR}.${PATCH}
 
 [[ -z ${VERSION} ]] && exit 1
 
-hg diff -r "v${MAJOR}-${MINOR}" -r tip -X path:src/testdir * >| vim.patch
-hg diff -a -r "v${MAJOR}-${MINOR}" -r tip -X path:./ -I path:src/testdir * >| vim-tests.patch
-cat vim.patch vim-tests.patch > vim-patches-${VERSION}.patch
-rm vim.patch vim-tests.patch
+hg diff -r "v${MAJOR}-${MINOR}" -r tip -X path:src/testdir * > vim-patches-${VERSION}.patch
+hg diff -a -r "v${MAJOR}-${MINOR}" -r tip -X path:./ -I path:src/testdir * >> vim-patches-${VERSION}.patch
 bzip2 vim-patches-${VERSION}.patch
 
 scp vim-patches-${VERSION}.patch.bz2 dev.gentoo.org:public_html/vim/
