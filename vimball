@@ -1,0 +1,142 @@
+#!/usr/bin/env python
+
+import os, sys, re, errno, gzip, bz2
+from argparse import ArgumentParser
+from tempfile import mkdtemp
+
+def mkdir_p(path):
+    try:
+        os.makedirs(path)
+    except OSError as exc:
+        if exc.errno == errno.EEXIST:
+            pass
+        else: raise
+
+class Vimball:
+    def __init__(self, filepath, extractdir):
+        self.filepath = filepath
+        self.extractdir = extractdir
+
+        self.vimball = self.__open_archive()
+
+        if not self.isVimball():
+            raise TypeError
+
+        self.basename = filepath.lower().split('.vba')[0]
+        self.files = self.__find_files()
+
+    def __del__(self):
+        try:
+            self.vimball.close()
+        except AttributeError:
+            return
+
+    def isVimball(self):
+        self.vimball.seek(0)
+        header = self.vimball.readline()
+        m = re.match('^" Vimball Archiver', header)
+
+        if m is not None:
+            return True
+        else:
+            return False
+
+    def __determine_extractdir(self):
+        if self.basename.endswith('.vmb'):
+            self.basename = self.basename[:-4]
+        if os.path.exists(self.basename):
+            tempdir = mkdtemp(prefix='vimball-', dir=os.getcwd())
+            return os.path.join(tempdir.split('/')[-1], self.basename)
+        else:
+            return self.basename
+
+    def __open_archive(self):
+        basename, extension = os.path.splitext(self.filepath)
+
+        try:
+            if extension == ".gz":
+                f = gzip.open(self.filepath)
+            elif extension == ".bz2":
+                f = bz2.BZ2File(self.filepath)
+            else:
+                f = open(self.filepath)
+        except IOError:
+            print("That file doesn't exist!")
+            sys.exit(errno.ENOENT)
+
+        return f
+
+    def __find_files(self):
+        files = []
+        header = re.compile(r"(.*)\t\[\[\[1\n")
+        line = self.vimball.readline()
+        while line:
+            m = header.match(line)
+            if m is not None:
+                filename = m.group(1)
+                filelines = self.vimball.readline().rstrip()
+                filestart = self.vimball.tell()
+                files.append((filename, filelines, filestart))
+            line = self.vimball.readline()
+        if files == []:
+            self.vimball.seek(0)
+            return self.__find_files_old()
+        else:
+            return files
+
+    def __find_files_old(self):
+        files = []
+        header = re.compile(r"^(\d+)\n$")
+        line = self.vimball.readline()
+        while line:
+            m = header.match(line)
+            if m is not None:
+                filelines = m.group(1)
+                filestart = self.vimball.tell()
+                filename = previousline.rstrip()
+                files.append((filename, filelines, filestart))
+            previousline = line
+            line = self.vimball.readline()
+        return files
+
+    def list(self):
+        for (filename, lines, offset) in self.files:
+            print(filename)
+
+    def extract(self):
+        if self.extractdir is None:
+            self.extractdir = self.__determine_extractdir()
+
+        self.vimball.seek(0)
+
+        for (filename, lines, offset) in self.files:
+            filepath = os.path.join(self.extractdir, filename)
+            mkdir_p(os.path.dirname(filepath))
+            f = open(filepath, 'w')
+            print(filepath)
+            self.vimball.seek(offset)
+            for i in range(int(lines)):
+                f.write(self.vimball.readline())
+            f.close
+
+if __name__ == "__main__":
+    parser = ArgumentParser(description='Vimball (un)archiver', prog='vimball')
+
+    parser.add_argument('archive', nargs=1)
+    parser.add_argument('-x', '--extract', help='extract files from a vimball archive',
+        action='store_true', dest='extract')
+    parser.add_argument('-l', '--list', help='list files a vimball archive',
+        action='store_true', dest='list')
+    parser.add_argument('-C', '--directory', help='extract files to a specified directory',
+        metavar='DIR', dest='extractdir')
+
+    args = parser.parse_args()
+
+    vimball = Vimball(args.archive[0], args.extractdir)
+
+    if args.extract:
+       vimball.extract()
+    elif args.list:
+       vimball.list()
+
+# vim:et:
