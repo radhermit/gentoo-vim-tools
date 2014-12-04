@@ -1,0 +1,125 @@
+#!/bin/bash
+# Fetch all colorschemes from the vim-scripts site, used to make snapshot
+# releases for app-vim/colorschemes.
+
+shopt -s extglob
+
+DATE=$(date +%Y%m%d)
+LANG=C
+DLOADDIR="${1:-${PWD}/colorschemes-${DATE}}"
+DOWNLOAD=true
+SCRIPTLIST="http://www.vim.org/scripts/script_search_results.php?&script_type=color%20scheme&order_by=script_name&direction=ascending&show_me=2000&result_ptr=0"
+#SCRIPTLIST="http://www.vim.org/scripts/script_search_results.php?&script_type=color%20scheme&order_by=downloads&direction=ascending&show_me=2000&result_ptr=0"
+#SCRIPTLIST="http://www.vim.org/scripts/script_search_results.php?&script_type=color%20scheme&order_by=creation_date&direction=ascending&show_me=2000&result_ptr=0"
+#SCRIPTLIST="http://www.vim.org/scripts/script_search_results.php?&script_type=color%20scheme&order_by=rating&direction=ascending&show_me=2000&result_ptr=0"
+
+echo -e "Creating a tarball for app-vim/colorschemes-${DATE}\n"
+if [[ ! -d $DLOADDIR ]] && $DOWNLOAD ; then
+	mkdir -p "$DLOADDIR"
+fi
+
+for i in $(wget -q -O - "$SCRIPTLIST"| grep 'script.php?script_id' | sed -e 's,^.*script.php?script_id=\([0-9]\+\)".*$,\1,' | sort -un); do
+	homeurl="http://www.vim.org/scripts/script.php?script_id=${i}"
+	IFS=$'\n'
+	colorinfo=( $(wget -q -O - "${homeurl}" | grep --no-group-separator 'download_script.php?src_id' -A 4) )
+	unset IFS
+
+	if [[ ${#colorinfo[@]} -eq 0 ]] ; then
+		echo "!!! No color scheme posted - skipping (${homeurl})"
+		continue
+	fi
+
+	j=0
+	while (($j < ${#colorinfo[@]})) ; do
+		let "elem = j % 5"
+		case $elem in
+			0) dloadid="$(echo "${colorinfo[$j]}" | sed -e 's,^.*download_script.php?src_id=\([0-9]\+\)".*$,\1,')"
+				filename="$(echo "${colorinfo[$j]}" | sed -e 's,^.*>\(.*\)</a>.*$,\1,')"
+				fileext="${filename##*.}"
+
+				if [[ $fileext =~ vim|txt|vba ]] ; then
+					colorname="${filename%%.*}"
+				else
+					colorname="${filename%%?([-_]+([0-9])).*}"
+				fi
+
+				if [[ $fileext =~ png|jpg ]] ; then
+					if [[ ${#colorinfo[@]} -gt 5 ]] ; then
+						echo "!!! Not a color scheme: $filename --- Downloading next version"
+						let "j += 5"
+						dloadid=""
+						continue
+					else
+						echo "!!! Skipping $filename (${homeurl})"
+						continue 2
+					fi
+				fi
+
+				if [[ $colorname =~ colorscheme_template|vimake|ColorSamplerPack|all_colors|ColorSchemeMenuMaker|285colors-with-az-menu|HiVim|fluka-vim|changingColor ]] ; then
+					echo "!!! Skipping $colorname (${homeurl})"
+					continue 2
+				fi
+
+				;;
+			1) colorversion="$(echo "${colorinfo[$j]}" | sed -e 's,^.*>\(.*\)</b>.*$,\1,')";;
+			2) colordate="$(echo "${colorinfo[$j]}" | sed -e 's,^.*>\(.*\)</i>.*$,\1,')";;
+			3) vimversion="$(echo "${colorinfo[$j]}" | sed -e 's,^.*>\(.*\)</td>.*$,\1,')";;
+			4) author="$(echo "${colorinfo[$j]}" | sed -e 's,^.*>\(.*\)</a>.*$,\1,')"
+				break;;
+			*) ;;
+		esac
+		((j++))
+	done
+
+	dloadurl="http://www.vim.org/scripts/download_script.php?src_id=${dloadid}"
+	echo ">>> Downloading color scheme: ${colorname}-${colorversion}"
+	echo "  File: $filename | Version: $colorversion | Date: $colordate | Vim: $vimversion | Author: $author"
+	echo "  Homepage URL: $homeurl"
+	echo "  Latest download URL: $dloadurl"
+
+	if $DOWNLOAD ; then
+		wget -q "${dloadurl}" --output-document="${DLOADDIR}/${filename}" || {
+			echo "!!! Downloading $colorname failed - skipping (${homeurl})"
+			rm -f ${filename} &> /dev/null
+			continue
+		}
+	fi
+done
+
+if $DOWNLOAD ; then
+	shopt -s nullglob
+	pushd ${DLOADDIR} &>/dev/null
+
+	# do unpack
+	for i in *.tar.gz *.tgz *.tar.bz2 *.tbz2 *.zip *.ZIP ; do
+		echo ">>> Unpacking ${i}"
+		aunpack "${i}"
+		rm -f "${i}" &> /dev/null
+	done
+
+	for i in *.vba; do
+		echo ">>> Unpacking ${i}"
+		vimball -x "${i}"
+		rm -f "${i}" &> /dev/null
+	done
+
+	for i in *.txt; do
+		echo ">>> Fixing ${i}"
+		mv "${i}" "${i/txt/vim}"
+	done
+
+	echo Move color schemes in nested directories to the main directory
+	echo 'find . -mindepth 2 -name *.vim -exec mv {} ./ \;'
+	echo
+	echo Remove non-color scheme files
+	echo 'find . -mindepth 1 ! -name *.vim -exec rm -rf {} \;'
+	echo
+	echo Set correct file modes
+	echo 'chmod 644 *.vim'
+	echo
+	echo Fixing line endings
+	echo 'find . -name *.vim -exec sed -i -e "s,\r,\n,g" {} \;'
+	echo
+	echo Check for dupes
+	echo 'fdupes .'
+fi
