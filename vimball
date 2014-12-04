@@ -16,9 +16,9 @@ class Vimball:
     def __init__(self, filepath, extractdir=None):
         self.filepath = filepath
 
-        self.vimball = self.__open_archive()
+        self.vimball = self._open_archive()
 
-        if not self.isVimball():
+        if not self._is_vimball():
             raise TypeError
 
         self.files = self._find_files()
@@ -39,7 +39,7 @@ class Vimball:
         except AttributeError:
             return
 
-    def isVimball(self):
+    def _is_vimball(self):
         self.vimball.seek(0)
         header = self.vimball.readline()
         m = re.match('^" Vimball Archiver', header)
@@ -49,7 +49,7 @@ class Vimball:
         else:
             return False
 
-    def __open_archive(self):
+    def _open_archive(self):
         basename, extension = os.path.splitext(self.filepath)
 
         try:
@@ -65,7 +65,7 @@ class Vimball:
 
         return f
 
-    def __find_files(self):
+    def _find_files(self):
         files = []
         header = re.compile(r"(.*)\t\[\[\[1\n")
         line = self.vimball.readline()
@@ -79,11 +79,11 @@ class Vimball:
             line = self.vimball.readline()
         if files == []:
             self.vimball.seek(0)
-            return self.__find_files_old()
+            return self._find_files_old()
         else:
             return files
 
-    def __find_files_old(self):
+    def _find_files_old(self):
         files = []
         header = re.compile(r"^(\d+)\n$")
         line = self.vimball.readline()
