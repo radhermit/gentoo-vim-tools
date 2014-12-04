@@ -73,7 +73,7 @@ class Vimball:
             m = header.match(line)
             if m is not None:
                 filename = m.group(1)
-                filelines = self.vimball.readline().rstrip()
+                filelines = int(self.vimball.readline().rstrip())
                 filestart = self.vimball.tell()
                 files.append((filename, filelines, filestart))
             line = self.vimball.readline()
@@ -111,7 +111,7 @@ class Vimball:
             f = open(filepath, 'w')
             print(filepath)
             self.vimball.seek(offset)
-            for i in range(int(lines)):
+            for i in range(lines):
                 f.write(self.vimball.readline())
             f.close
 
