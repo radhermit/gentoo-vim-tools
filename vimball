@@ -14,8 +14,8 @@ from tempfile import mkdtemp
 def mkdir_p(path):
     try:
         os.makedirs(path)
-    except OSError as exc:
-        if exc.errno == errno.EEXIST:
+    except OSError as e:
+        if e.errno == errno.EEXIST:
             pass
         else:
             raise
@@ -108,16 +108,14 @@ class Vimball:
 
     def extract(self):
         self.vimball.seek(0)
-
         for (filename, lines, offset) in self.files():
             filepath = os.path.join(self.extractdir, filename)
             mkdir_p(os.path.dirname(filepath))
-            f = open(filepath, 'w')
-            print(filepath)
-            self.vimball.seek(offset)
-            for i in range(lines):
-                f.write(self.vimball.readline())
-            f.close
+            with open(filepath, 'w') as f:
+                print(filepath)
+                self.vimball.seek(offset)
+                for i in range(lines):
+                    f.write(self.vimball.readline())
 
 if __name__ == "__main__":
     parser = ArgumentParser(description='Vimball (un)archiver', prog='vimball')
