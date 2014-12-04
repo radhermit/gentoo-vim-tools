@@ -13,17 +13,25 @@ def mkdir_p(path):
         else: raise
 
 class Vimball:
-    def __init__(self, filepath, extractdir):
+    def __init__(self, filepath, extractdir=None):
         self.filepath = filepath
-        self.extractdir = extractdir
 
         self.vimball = self.__open_archive()
 
         if not self.isVimball():
             raise TypeError
 
-        self.basename = filepath.lower().split('.vba')[0]
-        self.files = self.__find_files()
+        self.files = self._find_files()
+
+        if extractdir is None:
+            extractdir = self.filepath
+            if extractdir.endswith('.vba') or extractdir.endswith('.vmb'):
+                extractdir = extractdir[:-4]
+            if os.path.exists(extractdir):
+                tempdir = mkdtemp(prefix='vimball-', dir=os.getcwd())
+                extractdir = os.path.join(tempdir.split('/')[-1], extractdir)
+        self.extractdir = extractdir
+
 
     def __del__(self):
         try:
@@ -40,15 +48,6 @@ class Vimball:
             return True
         else:
             return False
-
-    def __determine_extractdir(self):
-        if self.basename.endswith('.vmb'):
-            self.basename = self.basename[:-4]
-        if os.path.exists(self.basename):
-            tempdir = mkdtemp(prefix='vimball-', dir=os.getcwd())
-            return os.path.join(tempdir.split('/')[-1], self.basename)
-        else:
-            return self.basename
 
     def __open_archive(self):
         basename, extension = os.path.splitext(self.filepath)
@@ -104,9 +103,6 @@ class Vimball:
             print(filename)
 
     def extract(self):
-        if self.extractdir is None:
-            self.extractdir = self.__determine_extractdir()
-
         self.vimball.seek(0)
 
         for (filename, lines, offset) in self.files:
