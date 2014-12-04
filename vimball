@@ -12,6 +12,9 @@ def mkdir_p(path):
             pass
         else: raise
 
+class NoFilesFound(Exception):
+    pass
+
 class Vimball:
     def __init__(self, filepath, extractdir=None):
         self.filepath = filepath
@@ -20,8 +23,6 @@ class Vimball:
 
         if not self._is_vimball():
             raise TypeError
-
-        self.files = self._find_files()
 
         if extractdir is None:
             extractdir = self.filepath
@@ -65,9 +66,9 @@ class Vimball:
 
         return f
 
-    def _find_files(self):
-        files = []
-        header = re.compile(r"(.*)\t\[\[\[1\n")
+    def _find_files(self, header):
+        filename = None
+        self.vimball.seek(0)
         line = self.vimball.readline()
         while line:
             m = header.match(line)
@@ -75,37 +76,31 @@ class Vimball:
                 filename = m.group(1)
                 filelines = int(self.vimball.readline().rstrip())
                 filestart = self.vimball.tell()
-                files.append((filename, filelines, filestart))
+                yield (filename, filelines, filestart)
             line = self.vimball.readline()
-        if files == []:
-            self.vimball.seek(0)
-            return self._find_files_old()
-        else:
-            return files
 
-    def _find_files_old(self):
-        files = []
-        header = re.compile(r"^(\d+)\n$")
-        line = self.vimball.readline()
-        while line:
-            m = header.match(line)
-            if m is not None:
-                filelines = m.group(1)
-                filestart = self.vimball.tell()
-                filename = previousline.rstrip()
-                files.append((filename, filelines, filestart))
-            previousline = line
-            line = self.vimball.readline()
-        return files
+        if filename is None:
+            raise NoFilesFound
+
+    def files(self):
+        header = re.compile(r"(.*)\t\[\[\[1\n")
+        try:
+            return self._find_files(header)
+        except NoFilesFound:
+            header = re.compile(r"^(\d+)\n$")
+            try:
+                return self._find_files(header)
+            except NoFilesFound:
+                raise SystemExit('No files were found in vimball: {}'.format(self.filepath))
 
     def list(self):
-        for (filename, lines, offset) in self.files:
+        for (filename, lines, offset) in self.files():
             print(filename)
 
     def extract(self):
         self.vimball.seek(0)
 
-        for (filename, lines, offset) in self.files:
+        for (filename, lines, offset) in self.files():
             filepath = os.path.join(self.extractdir, filename)
             mkdir_p(os.path.dirname(filepath))
             f = open(filepath, 'w')
