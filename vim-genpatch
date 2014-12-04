@@ -1,10 +1,10 @@
 #!/bin/bash
 # Generate and upload vim-patches tarballs
 
-CODEDIR=${HOME}/code
+VIMCODE=${HOME}/code/vim
 
-[[ -d ${CODEDIR}/vim ]] || mkdir -p "${CODEDIR}"/vim
-pushd "${CODEDIR}"/vim > /dev/null
+[[ -d ${VIMCODE} ]] || mkdir -p "${VIMCODE}"
+pushd "${VIMCODE}" > /dev/null
 hg pull -u
 
 REV=$(hg tags | head -n 2 | tail -n1 | awk '{print $1}' | sed 's/v//')
