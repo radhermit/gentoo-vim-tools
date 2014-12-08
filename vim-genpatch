@@ -1,10 +1,10 @@
 #!/bin/bash
 # Generate and upload vim patch files
 
-VIMCODE=${HOME}/code/vim
+VIM_CODE=${HOME}/code/vim
 
-[[ -d ${VIMCODE} ]] || mkdir -p "${VIMCODE}"
-pushd "${VIMCODE}" > /dev/null
+[[ -d ${VIM_CODE} ]] || mkdir -p "${VIM_CODE}"
+pushd "${VIM_CODE}" > /dev/null
 hg pull -u
 
 REV=$(hg tags | head -n 2 | tail -n1 | awk '{print $1}' | sed 's/v//')
@@ -15,11 +15,13 @@ VERSION=${MAJOR}.${MINOR}.${PATCH}
 
 [[ -z ${VERSION} ]] && exit 1
 
-hg diff -r "v${MAJOR}-${MINOR}" -r tip -X path:src/testdir * > vim-${VERSION}.patch
-hg diff -a -r "v${MAJOR}-${MINOR}" -r tip -X path:./ -I path:src/testdir * >> vim-${VERSION}.patch
-bzip2 vim-${VERSION}.patch
+VIM_PATCH=vim-${VERSION}.patch
 
-scp vim-${VERSION}.patch.bz2 dev.gentoo.org:public_html/vim/
-rm vim-${VERSION}.patch.bz2
+hg diff -r "v${MAJOR}-${MINOR}" -r tip -X path:src/testdir * > ${VIM_PATCH}
+hg diff -a -r "v${MAJOR}-${MINOR}" -r tip -X path:./ -I path:src/testdir * >> ${VIM_PATCH}
+bzip2 ${VIM_PATCH}
+
+scp ${VIM_PATCH}.bz2 dev.gentoo.org:public_html/vim/
+rm ${VIM_PATCH}.bz2
 
 popd > /dev/null
