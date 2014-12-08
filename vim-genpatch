@@ -1,5 +1,5 @@
 #!/bin/bash
-# Generate and upload vim-patches tarballs
+# Generate and upload vim patch files
 
 VIMCODE=${HOME}/code/vim
 
@@ -15,11 +15,11 @@ VERSION=${MAJOR}.${MINOR}.${PATCH}
 
 [[ -z ${VERSION} ]] && exit 1
 
-hg diff -r "v${MAJOR}-${MINOR}" -r tip -X path:src/testdir * > vim-patches-${VERSION}.patch
-hg diff -a -r "v${MAJOR}-${MINOR}" -r tip -X path:./ -I path:src/testdir * >> vim-patches-${VERSION}.patch
-bzip2 vim-patches-${VERSION}.patch
+hg diff -r "v${MAJOR}-${MINOR}" -r tip -X path:src/testdir * > vim-${VERSION}.patch
+hg diff -a -r "v${MAJOR}-${MINOR}" -r tip -X path:./ -I path:src/testdir * >> vim-${VERSION}.patch
+bzip2 vim-${VERSION}.patch
 
-scp vim-patches-${VERSION}.patch.bz2 dev.gentoo.org:public_html/vim/
-rm vim-patches-${VERSION}.patch.bz2
+scp vim-${VERSION}.patch.bz2 dev.gentoo.org:public_html/vim/
+rm vim-${VERSION}.patch.bz2
 
 popd > /dev/null
