@@ -19,9 +19,9 @@ VIM_PATCH=vim-${VERSION}.patch
 
 hg diff -r "v${MAJOR}-${MINOR}" -r tip -X path:src/testdir * > ${VIM_PATCH}
 hg diff -a -r "v${MAJOR}-${MINOR}" -r tip -X path:./ -I path:src/testdir * >> ${VIM_PATCH}
-bzip2 ${VIM_PATCH}
+xz ${VIM_PATCH}
 
-scp ${VIM_PATCH}.bz2 dev.gentoo.org:public_html/vim/
-rm ${VIM_PATCH}.bz2
+scp ${VIM_PATCH}.xz dev.gentoo.org:public_html/vim/
+rm ${VIM_PATCH}.xz
 
 popd > /dev/null
